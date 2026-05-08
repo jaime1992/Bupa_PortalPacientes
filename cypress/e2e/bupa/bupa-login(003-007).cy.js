@@ -1,6 +1,7 @@
 // REQ-BUPA-003 al REQ-BUPA-007
 // Login — autenticación de pacientes con RUT
 // Login de DOS pasos: paso 1 RUT → paso 2 contraseña
+// Selectores reales Angular Material — inspeccionados 2026-05-06
 
 describe('BUPA Login — Autenticación', () => {
 
