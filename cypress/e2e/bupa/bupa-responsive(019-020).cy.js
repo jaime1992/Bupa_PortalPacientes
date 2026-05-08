@@ -19,9 +19,8 @@ viewports.forEach(({ nombre, width, height, req }) => {
     })
 
     it(`formulario de login visible en ${nombre}`, () => {
-      cy.get('input[name="rut"]').should('be.visible')
-      cy.get('input[name="current-password"]').should('be.visible')
-      cy.get('button[type="submit"]').should('be.visible')
+      cy.get('input[name="rut"]', { timeout: 10000 }).should('be.visible')
+      cy.get('button[type="submit"]').first().should('be.visible')
     })
 
     it(`no hay scroll horizontal en ${nombre}`, () => {

@@ -16,17 +16,17 @@ describe('BUPA Performance — Tiempos de respuesta', () => {
 
   it('REQ-001: todos los recursos críticos de la página cargan', () => {
     cy.visit('https://portalpaciente.bupa.cl/inicio')
-    cy.get('input[name="rut"]').should('be.visible')
-    cy.get('input[name="current-password"]').should('be.visible')
-    cy.get('button[type="submit"]').should('be.visible')
+    cy.get('input[name="rut"]', { timeout: 10000 }).should('be.visible')
+    cy.get('button[type="submit"]').first().should('be.visible')
   })
 
   it('REQ-001: endpoint de login responde en menos de 2 segundos', () => {
     cy.intercept('POST', '**/auth**').as('loginRequest')
     cy.visit('https://portalpaciente.bupa.cl/inicio')
-    cy.get('input[name="rut"]').type(Cypress.env('BUPA_USER'))
-    cy.get('input[name="current-password"]').type(Cypress.env('BUPA_PASS'), { log: false })
-    cy.get('button[type="submit"]').should('not.be.disabled').click()
+    cy.get('input[name="rut"]', { timeout: 10000 }).type(Cypress.env('BUPA_USER'))
+    cy.get('button[type="submit"]').first().click()
+    cy.get('input[name="current-password"]', { timeout: 10000 }).type(Cypress.env('BUPA_PASS'), { log: false })
+    cy.get('button[type="submit"]').first().should('not.be.disabled').click()
     cy.wait('@loginRequest', { timeout: 5000 }).then((interception) => {
       cy.log(`Duración del request: ${interception.duration}ms`)
       expect(interception.duration).to.be.lessThan(2000)
