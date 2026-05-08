@@ -6,10 +6,13 @@ describe('BUPA Navegación — Post Login', () => {
 
   beforeEach(() => {
     cy.visit('https://portalpaciente.bupa.cl/inicio')
-    cy.get('input[name="rut"]').type(Cypress.env('BUPA_USER'))
-    cy.get('input[name="current-password"]').type(Cypress.env('BUPA_PASS'), { log: false })
-    cy.get('button[type="submit"]').should('not.be.disabled').click()
-    cy.url().should('not.include', '/inicio')
+    // Paso 1 — ingresar RUT y continuar
+    cy.get('input[name="rut"]', { timeout: 10000 }).type(Cypress.env('BUPA_USER'))
+    cy.get('button[type="submit"]').first().click()
+    // Paso 2 — ingresar contraseña
+    cy.get('input[name="current-password"]', { timeout: 10000 }).type(Cypress.env('BUPA_PASS'), { log: false })
+    cy.get('button[type="submit"]').first().should('not.be.disabled').click()
+    cy.url({ timeout: 15000 }).should('not.include', '/inicio')
   })
 
   it('REQ-008: dashboard visible después del login', () => {
