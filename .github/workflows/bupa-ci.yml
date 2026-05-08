@@ -2,9 +2,9 @@ name: BUPA Portal Pacientes — QA Pipeline
 
 on:
   push:
-    branches: [feature/bupa-*, develop]
+    branches: [feature/bupa-*, develop, master, main]
   pull_request:
-    branches: [main, develop]
+    branches: [main, develop, master]
   schedule:
     - cron: '50 7 * * 1-5'    # lunes-viernes 7:50am UTC (antes 8am Chile)
   workflow_dispatch:            # botón manual en GitHub
