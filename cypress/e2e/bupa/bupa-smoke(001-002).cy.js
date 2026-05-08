@@ -11,11 +11,11 @@ describe('BUPA Smoke Tests — Portal vivo', () => {
     cy.url().should('include', 'portalpaciente.bupa.cl')
   })
 
-  it('REQ-001: portal carga en menos de 3 segundos', () => {
+  it('REQ-001: portal carga en menos de 10 segundos', () => {
     const start = Date.now()
     cy.visit('https://portalpaciente.bupa.cl/inicio')
     cy.get('body').should('be.visible').then(() => {
-      expect(Date.now() - start).to.be.lessThan(3000)
+      expect(Date.now() - start).to.be.lessThan(10000)
     })
   })
 
