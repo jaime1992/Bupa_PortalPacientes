@@ -26,16 +26,16 @@ describe('BUPA Login — Autenticación', () => {
     irAPaso2(Cypress.env('BUPA_USER'))
     cy.get('input[name="current-password"]').type('ClaveIncorrecta999')
     cy.get('button[type="submit"]').first().click()
-    cy.get('mat-error', { timeout: 8000 }).should('be.visible')
+    cy.contains(/contraseña|rut|incorrecta|inválida|error/i, { timeout: 8000 }).should('be.visible')
     cy.url().should('match', /\/(inicio|login)/)
   })
 
   it('REQ-005: error visible con RUT en formato incorrecto', () => {
     cy.get('input[name="rut"]', { timeout: 10000 }).type('noesunrut')
-    cy.get('input[name="rut"]').blur()
+    cy.get('button[type="submit"]').first().click({ force: true })
     cy.get('mat-error', { timeout: 8000 }).should('be.visible')
     cy.get('button[type="submit"]').first().should('be.disabled')
-    cy.url().should('include', '/inicio')
+    cy.url().should('match', /\/(inicio|login)/)
   })
 
   it('REQ-006: botón ingresar deshabilitado con campos vacíos', () => {

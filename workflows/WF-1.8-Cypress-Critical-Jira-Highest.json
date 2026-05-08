@@ -1,0 +1,389 @@
+{
+  "updatedAt": "2026-05-03T11:08:03.470Z",
+  "createdAt": "2026-05-03T00:24:09.858Z",
+  "id": "8rlr0X8xGq36otMk",
+  "name": "WF-1.8 — Cypress Critical + Jira Highest → WhatsApp + Gmail",
+  "description": null,
+  "active": false,
+  "isArchived": false,
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "cypress-critical",
+        "options": {}
+      },
+      "id": "1fe7b097-56e8-4f0c-985c-702fcb6f6b61",
+      "name": "Webhook Cypress",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        624,
+        -32
+      ],
+      "webhookId": "cypress-critical-wf18"
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes"
+            }
+          ]
+        }
+      },
+      "id": "a74ed92b-82e8-49e2-9a12-c2a5e0bc4c0e",
+      "name": "Schedule Jira",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        464
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://qaprocess1.atlassian.net/rest/api/3/search/jql",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Basic amFpbWVxdi4yNjA5QGdtYWlsLmNvbTpBVEFUVDN4RmZHRjBOcC1xZWhIekZTaU1vbHItWEV2TndhemRCMVplcnNQVi1FZ2dBSjVYQ2sxZHBzbHI0MEJCZkR4dzdlOGJJVkoxZkFwZGlmaVU1VG1laEIyQXQ1c0lfZGxaZnRyN1NhczlIc2UwYmRUc0RyaElFOW9oOGJYMERqcVdlQ2xyelJ4OGJFM0VocUFEVzZLUGNSMGpTVDV2WE9fRFgwcjMyVkZjd3lKZFhNUjV3Njg9RDI0NkEzOUI="
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "body": "{\"jql\":\"project = KAN AND priority = Highest ORDER BY created DESC\",\"maxResults\":50,\"fields\":[\"summary\",\"status\",\"priority\",\"assignee\",\"reporter\",\"created\"]}",
+        "options": {}
+      },
+      "id": "50e63081-d972-4633-be7a-f7660f99ce8e",
+      "name": "Jira Buscar Highest",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        256,
+        464
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "cond-001",
+              "leftValue": "={{ $json.total }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "1ad8def2-8e64-4e2e-ba25-41f50f0ae8a5",
+      "name": "IF Hay Issues Highest",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        496,
+        464
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $input.first().json;\nconst specs = data.specs || [];\nconst alertas = specs.map(s => ({\n  tipo: 'cypress',\n  spec: s.spec ? s.spec.split('/').pop().split('\\\\').pop() : 'desconocido',\n  fallos: s.fallos || 0,\n  tests: (s.tests || []).map(t => ({\n    titulo: t.titulo || t.title || '',\n    error: String(t.error || '').substring(0, 200)\n  }))\n}));\nreturn [{\n  json: {\n    fuente: 'cypress',\n    icono: '🔴',\n    titulo: 'FALLO CRÍTICO EN TEST',\n    alertas,\n    total: data.total_fallos_criticos || specs.length || 0,\n    timestamp: data.timestamp || new Date().toISOString(),\n    ambiente: data.ambiente || 'QA'\n  }\n}];"
+      },
+      "id": "f2d5abea-9ef3-411f-a280-aa963e58826f",
+      "name": "Normalizar Cypress",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        864,
+        16
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $input.first().json;\nconst issues = data.issues || [];\nconst alertas = issues.map(issue => ({\n  id: issue.key,\n  titulo: issue.fields?.summary || 'Sin título',\n  prioridad: issue.fields?.priority?.name || 'Highest',\n  estado: issue.fields?.status?.name || 'N/A',\n  reportadoPor: issue.fields?.reporter?.displayName || 'Desconocido',\n  asignado: issue.fields?.assignee?.displayName || 'Sin asignar',\n  created: issue.fields?.created || new Date().toISOString()\n}));\nreturn [{\n  json: {\n    fuente: 'jira',\n    icono: '🚨',\n    titulo: 'BUG HIGHEST EN JIRA',\n    alertas,\n    total: issues.length,\n    timestamp: new Date().toISOString(),\n    ambiente: 'QA'\n  }\n}];"
+      },
+      "id": "3b38d118-9c06-4f39-a3ec-3709586801f2",
+      "name": "Normalizar Jira",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        752,
+        368
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "f4d45841-57be-4d5f-b0f4-589656136a21",
+      "name": "Sin Accion",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        752,
+        576
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $input.first().json;\nconst ahora = new Date(data.timestamp);\nconst hora = ahora.toLocaleTimeString('es-CL', { timeZone: 'America/Santiago', hour: '2-digit', minute: '2-digit' });\nconst fecha = ahora.toLocaleDateString('es-CL', { timeZone: 'America/Santiago' });\n\nlet mensajeWA = '';\nlet htmlEmail = '';\nlet asunto = '';\n\nif (data.fuente === 'cypress') {\n  const item = data.alertas[0] || {};\n  const test = (item.tests || [])[0] || {};\n  mensajeWA = `${data.icono} FALLO CRÍTICO QA — Bupa Chile\\n\\n📁 Spec: ${item.spec || 'N/A'}\\n❌ Test: ${test.titulo || 'N/A'}\\n⚠️ Error: ${test.error || 'Ver logs'}\\n🕐 Hora: ${hora} hrs | Ambiente: QA\\n\\nRevisar inmediatamente.`;\n  htmlEmail = `<h2 style=\"color:#c0392b;font-family:Arial\">🔴 Fallo Crítico QA — Bupa Chile</h2><table style=\"border-collapse:collapse;width:100%;font-family:Arial\"><tr><td style=\"padding:8px;background:#f8d7da\"><b>Spec:</b></td><td style=\"padding:8px\">${item.spec}</td></tr><tr><td style=\"padding:8px;background:#f8d7da\"><b>Test:</b></td><td style=\"padding:8px\">${test.titulo}</td></tr><tr><td style=\"padding:8px;background:#f8d7da\"><b>Error:</b></td><td style=\"padding:8px;font-family:monospace;color:#c0392b\">${test.error}</td></tr><tr><td style=\"padding:8px;background:#f8d7da\"><b>Hora:</b></td><td style=\"padding:8px\">${hora} hrs — ${fecha}</td></tr></table><p style=\"font-family:Arial;color:#666;margin-top:16px\">Mensaje automático — QA Bupa Chile</p>`;\n  asunto = `🔴 Fallo Crítico QA — ${item.spec || 'spec'} — ${hora} hrs`;\n} else {\n  const lineas = data.alertas.map(a => `🎫 ${a.id}: ${a.titulo}\\n   👤 ${a.reportadoPor} → ${a.asignado}`).join('\\n\\n');\n  mensajeWA = `${data.icono} BUG HIGHEST — Bupa Chile QA\\n\\n${lineas}\\n\\n🕐 Detectado: ${hora} hrs\\n\\nAsignar y atender de inmediato.`;\n  const tarjetas = data.alertas.map(a => `<div style=\"border-left:4px solid #e67e22;padding:12px;margin:8px 0;font-family:Arial\"><p style=\"margin:0\"><b>${a.id}:</b> ${a.titulo}</p><p style=\"margin:4px 0;color:#666\">Reportado por: ${a.reportadoPor} → <b>${a.asignado}</b></p></div>`).join('');\n  htmlEmail = `<h2 style=\"color:#e67e22;font-family:Arial\">🚨 Bug Highest Detectado — Bupa Chile QA</h2>${tarjetas}<p style=\"font-family:Arial;color:#666;margin-top:16px\">Detectado a las ${hora} hrs — ${fecha}</p>`;\n  asunto = `🚨 ${data.total} Bug(s) Highest — Bupa Chile QA — ${hora} hrs`;\n}\n\nreturn [{ json: { mensajeWA: encodeURIComponent(mensajeWA), htmlEmail, asunto, fuente: data.fuente } }];"
+      },
+      "id": "bc30daa4-5e39-4d8b-a046-41e395d29644",
+      "name": "Preparar Mensajes",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        992,
+        256
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.twilio.com/2010-04-01/Accounts/AC3d95f28501dc9834ed18d085fc06f9fa/Messages.json",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Basic QUMzZDk1ZjI4NTAxZGM5ODM0ZWQxOGQwODVmYzA2ZjlmYTpkNThlYjcwNzYwYjU1ZDg2MWU3NzFjYjgyNGQ2YWNhMw=="
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "form-urlencoded",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "From",
+              "value": "whatsapp:+14155238886"
+            },
+            {
+              "name": "To",
+              "value": "whatsapp:+56973473222"
+            },
+            {
+              "name": "Body",
+              "value": "={{ decodeURIComponent($json.mensajeWA) }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 15000
+        }
+      },
+      "id": "a86cad95-fc84-4eac-bc8a-16bd677fb9d4",
+      "name": "WhatsApp Jaime",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1248,
+        160
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://localhost:3025/send-email",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "to",
+              "value": "jaimeqv.2609@gmail.com,javi.gajardo26@gmail.com"
+            },
+            {
+              "name": "subject",
+              "value": "={{ $json.asunto }}"
+            },
+            {
+              "name": "html",
+              "value": "={{ $json.htmlEmail }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 15000
+        }
+      },
+      "id": "6f7b3c6d-71e2-4f75-b269-32d5afbcc09b",
+      "name": "Enviar Email Equipo",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1248,
+        352
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## WF-1.8 — Cypress Critical + Jira Highest\n\n**Trigger A:** Webhook POST `/webhook/cypress-critical`\nCypress llama este endpoint en `afterRun.js` cuando detecta un fallo en specs críticos: `login`, `pago`.\n\n**Trigger B:** Schedule cada 5 min\nConsulta Jira con JQL: `project = KAN AND priority = Highest AND created >= \"-6m\"`\nSolo captura issues NUEVOS — deduplicación por ventana de tiempo.\n\n**Alerta:** WhatsApp (Jaime + Javi) + Email equipo completo\n\n**Pendiente:**\n- Reemplazar `PENDIENTE_APIKEY_JAIME` con API key real de CallMeBot\n- Reemplazar `PENDIENTE_APIKEY_JAVI` con API key real de CallMeBot\n\n**Autor:** Jaime Quiñelen | Bupa Chile QA | Mayo 2026",
+        "height": 380,
+        "width": 620,
+        "color": 3
+      },
+      "id": "9e8f94e5-871e-4e30-99d2-360b2666f9ce",
+      "name": "Sticky Note",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -48,
+        16
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook Cypress": {
+      "main": [
+        [
+          {
+            "node": "Normalizar Cypress",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Schedule Jira": {
+      "main": [
+        [
+          {
+            "node": "Jira Buscar Highest",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Jira Buscar Highest": {
+      "main": [
+        [
+          {
+            "node": "IF Hay Issues Highest",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF Hay Issues Highest": {
+      "main": [
+        [
+          {
+            "node": "Normalizar Jira",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Sin Accion",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalizar Cypress": {
+      "main": [
+        [
+          {
+            "node": "Preparar Mensajes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalizar Jira": {
+      "main": [
+        [
+          {
+            "node": "Preparar Mensajes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar Mensajes": {
+      "main": [
+        [
+          {
+            "node": "WhatsApp Jaime",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Enviar Email Equipo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "staticData": null,
+  "meta": null,
+  "pinData": {},
+  "versionId": "73ac29ff-2e69-4c27-ac90-fd2006072820",
+  "activeVersionId": null,
+  "versionCounter": 9,
+  "triggerCount": 0,
+  "tags": [],
+  "shared": [
+    {
+      "updatedAt": "2026-05-03T00:24:09.862Z",
+      "createdAt": "2026-05-03T00:24:09.862Z",
+      "role": "workflow:owner",
+      "workflowId": "8rlr0X8xGq36otMk",
+      "projectId": "CJByUTkvH2EWoyIZ",
+      "project": {
+        "updatedAt": "2026-04-28T15:10:49.852Z",
+        "createdAt": "2026-04-28T15:01:30.422Z",
+        "id": "CJByUTkvH2EWoyIZ",
+        "name": "Jaime Quiñelen <jaimeqv.2609@gmail.com>",
+        "type": "personal",
+        "icon": null,
+        "description": null,
+        "creatorId": "71e82328-deab-4cca-982e-0babe67cb827"
+      }
+    }
+  ],
+  "versionMetadata": {
+    "name": null,
+    "description": null
+  }
+}
