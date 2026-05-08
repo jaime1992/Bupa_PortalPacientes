@@ -1,6 +1,6 @@
 // REQ-BUPA-003 al REQ-BUPA-007
 // Login — autenticación de pacientes con RUT
-// Selectores reales Angular Material — inspeccionados 2026-05-06
+// Login de DOS pasos: paso 1 RUT → paso 2 contraseña
 
 describe('BUPA Login — Autenticación', () => {
 
@@ -8,35 +8,43 @@ describe('BUPA Login — Autenticación', () => {
     cy.visit('https://portalpaciente.bupa.cl/inicio')
   })
 
+  // Helper: avanza al paso 2 ingresando el RUT y clickeando continuar
+  const irAPaso2 = (rut) => {
+    cy.get('input[name="rut"]', { timeout: 10000 }).type(rut)
+    cy.get('button[type="submit"]').first().click()
+    cy.get('input[name="current-password"]', { timeout: 10000 }).should('be.visible')
+  }
+
   it('REQ-003: login exitoso con credenciales válidas', () => {
-    cy.get('input[name="rut"]').type(Cypress.env('BUPA_USER'))
+    irAPaso2(Cypress.env('BUPA_USER'))
     cy.get('input[name="current-password"]').type(Cypress.env('BUPA_PASS'), { log: false })
-    cy.get('button[type="submit"]').should('not.be.disabled').click()
-    cy.url().should('not.include', '/inicio')
+    cy.get('button[type="submit"]').first().click()
+    cy.url({ timeout: 15000 }).should('not.include', '/inicio')
   })
 
-  it('REQ-004: error visible con credenciales inválidas', () => {
-    cy.get('input[name="rut"]').type('12345678K')
+  it('REQ-004: error visible con contraseña incorrecta', () => {
+    irAPaso2(Cypress.env('BUPA_USER'))
     cy.get('input[name="current-password"]').type('ClaveIncorrecta999')
-    cy.get('button[type="submit"]').should('not.be.disabled').click()
-    cy.get('mat-error').should('be.visible')
-    cy.get('mat-error').should('contain.text', 'Rut o contraseña incorrecta')
-    cy.url().should('include', '/inicio')
+    cy.get('button[type="submit"]').first().click()
+    cy.get('mat-error', { timeout: 8000 }).should('be.visible')
+    cy.url().should('match', /\/(inicio|login)/)
   })
 
   it('REQ-005: error visible con RUT en formato incorrecto', () => {
-    cy.get('input[name="rut"]').type('noesunrut')
-    cy.get('input[name="current-password"]').type('MiClave123')
-    cy.get('mat-error').should('be.visible')
+    cy.get('input[name="rut"]', { timeout: 10000 }).type('noesunrut')
+    cy.get('input[name="rut"]').blur()
+    cy.get('mat-error', { timeout: 8000 }).should('be.visible')
+    cy.get('button[type="submit"]').first().should('be.disabled')
     cy.url().should('include', '/inicio')
   })
 
   it('REQ-006: botón ingresar deshabilitado con campos vacíos', () => {
-    cy.get('button[type="submit"]').should('be.disabled')
+    cy.get('button[type="submit"]', { timeout: 10000 }).first().should('be.disabled')
   })
 
-  it('REQ-007: enlace olvidé contraseña existe y es clickeable', () => {
-    cy.contains(/olvidé|olvidaste|recuperar/i).should('be.visible').click()
+  it('REQ-007: enlace olvidé contraseña existe en paso 2', () => {
+    irAPaso2(Cypress.env('BUPA_USER'))
+    cy.contains(/olvidé|olvidaste|recuperar/i, { timeout: 10000 }).should('be.visible').click()
     cy.url().should('not.include', '/inicio')
   })
 

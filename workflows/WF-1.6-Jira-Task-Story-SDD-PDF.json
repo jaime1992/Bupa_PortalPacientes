@@ -144,21 +144,21 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "https://api.twilio.com/2010-04-01/Accounts/TWILIO_ACCOUNT_SID/Messages.json",
+        "url": "https://api.twilio.com/2010-04-01/Accounts/AC3d95f28501dc9834ed18d085fc06f9fa/Messages.json",
         "authentication": "none",
         "sendBody": true,
         "contentType": "form-urlencoded",
         "bodyParameters": {
           "parameters": [
-            { "name": "From", "value": "whatsapp:+TWILIO_FROM_NUMBER" },
+            { "name": "From", "value": "whatsapp:+14155238886" },
             { "name": "To",   "value": "whatsapp:+56973473222" },
-            { "name": "Body", "value": "={{ $('Preparar Email + WA').item.json.mensajeWhatsApp }}" }
+            { "name": "Body", "value": "={{ decodeURIComponent($('Preparar Email + WA').item.json.mensajeWhatsApp) }}" }
           ]
         },
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            { "name": "Authorization", "value": "Basic TWILIO_BASE64_CREDENTIALS" }
+            { "name": "Authorization", "value": "Basic QUMzZDk1ZjI4NTAxZGM5ODM0ZWQxOGQwODVmYzA2ZjlmYTpkNThlYjcwNzYwYjU1ZDg2MWU3NzFjYjgyNGQ2YWNhMw==" }
           ]
         },
         "options": { "timeout": 15000 }
