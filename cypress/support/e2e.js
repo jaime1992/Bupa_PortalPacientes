@@ -17,3 +17,4 @@
 import './commands'
 import 'cypress-axe'
 import 'cypress-image-diff-js/command'
+import '@cypress/grep'
