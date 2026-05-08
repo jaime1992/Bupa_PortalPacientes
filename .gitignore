@@ -28,9 +28,13 @@ Thumbs.db
 *.env
 cypress.env.json
 
-# Scripts de administración n8n (no son parte del framework de testing)
-workflows/*.py
-workflows/*.bak
+# Workflows n8n — contienen credenciales de Twilio/Jira en texto plano
+workflows/
+
+# Scripts de administración n8n
+*.py
+*.js.bak
+cypress_output.txt
 
 # Prompt Maestro — archivos sensibles
 context/credenciales-*.md
