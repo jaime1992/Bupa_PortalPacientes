@@ -9,7 +9,7 @@ module.exports = defineConfig({
   e2e: {
     supportFile: 'cypress/support/e2e.js',
     specPattern: 'cypress/e2e/**/*.cy.js',
-    allowCypressEnv: false,
+    allowCypressEnv: true,
 
     setupNodeEvents(on, config) {
       on('before:browser:launch', (browser, launchOptions) => {

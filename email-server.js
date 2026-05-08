@@ -245,7 +245,7 @@ const server = http.createServer(async (req, res) => {
 
       const excelPath = generateCypressExcel(results, stats, suite, fecha)
       const html      = buildCypressHtml(results, stats, suite, fecha)
-      const subject   = `🧪 Cypress ${status} — ${stats.passes||0}✅ ${failures}❌ | ${fecha}`
+      const subject   = `🧪 Cypress Test Regresión ${status} — ${stats.passes||0}✅ ${failures}❌ | ${fecha}`
 
       await transporter.sendMail({
         from: SMTP_USER, to: EMAIL_TO, subject, html,

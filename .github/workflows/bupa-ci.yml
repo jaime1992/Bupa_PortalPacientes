@@ -1,0 +1,146 @@
+name: BUPA Portal Pacientes — QA Pipeline
+
+on:
+  push:
+    branches: [feature/bupa-*, develop]
+  pull_request:
+    branches: [main, develop]
+  schedule:
+    - cron: '50 7 * * 1-5'    # lunes-viernes 7:50am UTC (antes 8am Chile)
+  workflow_dispatch:            # botón manual en GitHub
+
+jobs:
+
+  # ─────────────────────────────────────────────────
+  # STAGE 1 — INSTALAR DEPENDENCIAS
+  # ─────────────────────────────────────────────────
+  install:
+    name: Instalar dependencias
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout código
+        uses: actions/checkout@v4
+
+      - name: Configurar Node.js 18
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+          cache: 'npm'
+
+      - name: Instalar dependencias
+        run: npm ci
+
+  # ─────────────────────────────────────────────────
+  # STAGE 2 — SEGURIDAD (paralelo con smoke)
+  # ─────────────────────────────────────────────────
+  security:
+    name: Auditoría de seguridad
+    needs: install
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: npm ci
+      - name: Verificar vulnerabilidades HIGH
+        run: npm audit --audit-level=high
+
+  # ─────────────────────────────────────────────────
+  # STAGE 3 — SMOKE TESTS (portal vivo?)
+  # ─────────────────────────────────────────────────
+  smoke-tests:
+    name: Smoke Tests — Portal vivo
+    needs: install
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 18
+          cache: 'npm'
+      - run: npm ci
+
+      - name: Correr smoke tests BUPA
+        run: npx cypress run --spec "cypress/e2e/bupa/bupa-smoke*"
+        env:
+          CYPRESS_BUPA_USER: ${{ secrets.BUPA_USER }}
+          CYPRESS_BUPA_PASS: ${{ secrets.BUPA_PASS }}
+
+      - name: Guardar evidencia smoke
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: smoke-evidencia
+          path: |
+            cypress/reports/
+            cypress/screenshots/
+          retention-days: 30
+
+  # ─────────────────────────────────────────────────
+  # STAGE 4 — TESTS CRÍTICOS
+  # ─────────────────────────────────────────────────
+  tests-criticos:
+    name: Tests Críticos — Login y Navegación
+    needs: smoke-tests
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        spec:
+          - "cypress/e2e/bupa/bupa-login*"
+          - "cypress/e2e/bupa/bupa-navegacion*"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 18
+          cache: 'npm'
+      - run: npm ci
+
+      - name: Correr spec ${{ matrix.spec }}
+        run: npx cypress run --spec "${{ matrix.spec }}"
+        env:
+          CYPRESS_BUPA_USER: ${{ secrets.BUPA_USER }}
+          CYPRESS_BUPA_PASS: ${{ secrets.BUPA_PASS }}
+
+      - name: Guardar evidencia críticos
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: criticos-${{ strategy.job-index }}
+          path: |
+            cypress/reports/
+            cypress/videos/
+            cypress/screenshots/
+          retention-days: 30
+
+  # ─────────────────────────────────────────────────
+  # STAGE 5 — NOTIFICAR RESULTADO
+  # ─────────────────────────────────────────────────
+  notify:
+    name: Notificar resultado al equipo
+    needs: [smoke-tests, tests-criticos, security]
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - name: Determinar estado final
+        id: estado
+        run: |
+          if [ "${{ needs.smoke-tests.result }}" == "success" ] && [ "${{ needs.tests-criticos.result }}" == "success" ]; then
+            echo "status=PASSED" >> $GITHUB_OUTPUT
+            echo "emoji=✅" >> $GITHUB_OUTPUT
+          else
+            echo "status=FAILED" >> $GITHUB_OUTPUT
+            echo "emoji=❌" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Notificar resultado a n8n
+        run: |
+          curl -X POST "${{ secrets.N8N_WEBHOOK_URL }}" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "pipeline": "BUPA Portal Pacientes",
+              "status": "${{ steps.estado.outputs.status }}",
+              "emoji": "${{ steps.estado.outputs.emoji }}",
+              "branch": "${{ github.ref_name }}",
+              "actor": "${{ github.actor }}",
+              "run_url": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+            }' || echo "n8n no disponible — notificación omitida"
