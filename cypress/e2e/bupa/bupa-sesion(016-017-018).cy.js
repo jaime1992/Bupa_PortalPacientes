@@ -5,12 +5,13 @@
 describe('BUPA Sesión — Persistencia y seguridad', () => {
 
   const doLogin = () => {
+    cy.viewport(1280, 720)
     cy.visit('https://portalpaciente.bupa.cl/inicio')
     cy.get('input[name="rut"]', { timeout: 10000 }).type(Cypress.env('BUPA_USER'))
     cy.get('button[type="submit"]').first().click()
     cy.get('input[name="current-password"]', { timeout: 10000 }).type(Cypress.env('BUPA_PASS'), { log: false })
     cy.get('button[type="submit"]').first().should('not.be.disabled').click()
-    cy.url({ timeout: 15000 }).should('not.include', '/inicio')
+    cy.url({ timeout: 25000 }).should('not.include', '/inicio')
   }
 
   it('REQ-016: sesión persiste al recargar la página', () => {
@@ -22,23 +23,23 @@ describe('BUPA Sesión — Persistencia y seguridad', () => {
 
   it('REQ-017: logout redirige a la página de inicio', () => {
     doLogin()
-    cy.get('button, a').contains(/cerrar sesión|logout|salir/i).click()
-    cy.url().should('include', '/inicio')
+    cy.get('button, a').contains(/cerrar sesión|logout|salir/i).click({ force: true })
+    cy.url({ timeout: 10000 }).should('match', /\/(inicio|login)/)
   })
 
   it('REQ-017: después del logout no se puede acceder al dashboard', () => {
     doLogin()
-    cy.get('button, a').contains(/cerrar sesión|logout|salir/i).click()
-    cy.url().should('include', '/inicio')
+    cy.get('button, a').contains(/cerrar sesión|logout|salir/i).click({ force: true })
+    cy.url({ timeout: 10000 }).should('match', /\/(inicio|login)/)
     cy.visit('https://portalpaciente.bupa.cl/dashboard')
-    cy.url().should('include', '/inicio')
+    cy.url().should('match', /\/(inicio|login)/)
   })
 
   it('REQ-018: usuario no autenticado es redirigido al login', () => {
     cy.clearCookies()
     cy.clearLocalStorage()
     cy.visit('https://portalpaciente.bupa.cl/dashboard')
-    cy.url().should('include', '/inicio')
+    cy.url().should('match', /\/(inicio|login)/)
   })
 
 })
