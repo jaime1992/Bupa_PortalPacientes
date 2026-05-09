@@ -14,7 +14,7 @@
 - [ ] El spec sigue la convención de nombres `bupa-[funcionalidad](REQ-XXX).cy.js`
 
 ## REQs cubiertos
-<!-- Ej: REQ-003, REQ-004 -->
+<!-- Ej: REQ-001, REQ-002, REQ-003, REQ-004 -->
 
 ## Evidencia
 <!-- Screenshot o link al run de GitHub Actions -->
