@@ -1,14 +1,18 @@
 // REQ-BUPA-007
 // Recuperar contraseña — flujo de recuperación de acceso
-// Selectores reales Angular Material — inspeccionados 2026-05-06
+// El enlace aparece en PASO 2 (después de ingresar RUT)
 
 describe('BUPA Recuperar contraseña', () => {
 
   beforeEach(() => {
     cy.visit('https://portalpaciente.bupa.cl/inicio')
+    // Paso 1 — ingresar RUT para llegar al paso 2 donde aparece el enlace
+    cy.get('input[name="rut"]', { timeout: 10000 }).type(Cypress.env('BUPA_USER'))
+    cy.get('button[type="submit"]').first().click()
+    cy.get('input[name="current-password"]', { timeout: 10000 }).should('be.visible')
   })
 
-  it('REQ-007: enlace de recuperación es visible en el login', () => {
+  it('REQ-007: enlace de recuperación es visible en paso 2', () => {
     cy.contains(/olvidé|olvidaste|recuperar/i).should('be.visible')
   })
 
@@ -20,18 +24,18 @@ describe('BUPA Recuperar contraseña', () => {
 
   it('REQ-007: formulario de recuperación tiene campo de RUT o email', () => {
     cy.contains(/olvidé|olvidaste|recuperar/i).click()
-    cy.get('input[name="rut"], input[type="email"], mat-form-field input')
+    cy.get('input[name="rut"], input[type="email"], mat-form-field input', { timeout: 8000 })
       .should('be.visible')
   })
 
   it('REQ-007: formulario de recuperación tiene botón de envío', () => {
     cy.contains(/olvidé|olvidaste|recuperar/i).click()
-    cy.get('button[type="submit"]').should('be.visible')
+    cy.get('button[type="submit"]', { timeout: 8000 }).should('be.visible')
   })
 
   it('REQ-007: hay enlace para volver al login', () => {
     cy.contains(/olvidé|olvidaste|recuperar/i).click()
-    cy.contains(/volver|regresar|iniciar sesión/i).should('be.visible')
+    cy.contains(/volver|regresar|iniciar sesión/i, { timeout: 8000 }).should('be.visible')
   })
 
 })
