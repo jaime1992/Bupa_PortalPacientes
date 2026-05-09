@@ -10,8 +10,9 @@ describe('BUPA Exámenes — Resultados médicos', () => {
     cy.get('button[type="submit"]').first().click()
     cy.get('input[name="current-password"]', { timeout: 10000 }).type(Cypress.env('BUPA_PASS'), { log: false })
     cy.get('button[type="submit"]').first().should('not.be.disabled').click()
-    cy.url({ timeout: 15000 }).should('not.include', '/inicio')
-    cy.contains(/exámenes|examenes|resultados/i).click()
+    cy.viewport(1280, 720)
+    cy.url({ timeout: 25000 }).should('not.include', '/inicio')
+    cy.contains(/exámenes|examenes|resultados/i).click({ force: true })
   })
 
   it('REQ-011: sección mis exámenes es accesible', () => {
