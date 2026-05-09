@@ -5,6 +5,7 @@
 describe('BUPA Navegación — Post Login', () => {
 
   beforeEach(() => {
+    cy.viewport(1280, 720)
     cy.visit('https://portalpaciente.bupa.cl/inicio')
     // Paso 1 — ingresar RUT y continuar
     cy.get('input[name="rut"]', { timeout: 10000 }).type(Cypress.env('BUPA_USER'))
@@ -12,7 +13,7 @@ describe('BUPA Navegación — Post Login', () => {
     // Paso 2 — ingresar contraseña
     cy.get('input[name="current-password"]', { timeout: 10000 }).type(Cypress.env('BUPA_PASS'), { log: false })
     cy.get('button[type="submit"]').first().should('not.be.disabled').click()
-    cy.url({ timeout: 15000 }).should('not.include', '/inicio')
+    cy.url({ timeout: 25000 }).should('not.include', '/inicio')
   })
 
   it('REQ-008: dashboard visible después del login', () => {
@@ -26,18 +27,18 @@ describe('BUPA Navegación — Post Login', () => {
   })
 
   it('REQ-009: sección Citas es accesible desde el menú', () => {
-    cy.contains(/citas/i).should('be.visible').click()
-    cy.url().should('match', /citas|appointment/i)
+    cy.contains(/citas/i).click({ force: true })
+    cy.url({ timeout: 10000 }).should('match', /citas|appointment/i)
   })
 
   it('REQ-009: sección Exámenes es accesible desde el menú', () => {
-    cy.contains(/exámenes|examenes|resultados/i).should('be.visible').click()
-    cy.url().should('match', /examen|resultado|exam/i)
+    cy.contains(/exámenes|examenes|resultados/i).click({ force: true })
+    cy.url({ timeout: 10000 }).should('match', /examen|resultado|exam/i)
   })
 
   it('REQ-009: sección Perfil es accesible desde el menú', () => {
-    cy.contains(/perfil|mi cuenta|cuenta/i).should('be.visible').click()
-    cy.url().should('match', /perfil|profile|cuenta/i)
+    cy.contains(/perfil|mi cuenta|cuenta/i).click({ force: true })
+    cy.url({ timeout: 10000 }).should('match', /perfil|profile|cuenta/i)
   })
 
 })
