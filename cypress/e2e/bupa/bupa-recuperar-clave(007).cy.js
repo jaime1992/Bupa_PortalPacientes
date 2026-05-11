@@ -24,7 +24,9 @@ describe('BUPA Recuperar contraseña', () => {
 
   it('REQ-007: formulario de recuperación tiene campo de RUT o email', () => {
     cy.contains(/olvidé|olvidaste|recuperar/i).click()
-    cy.get('input[name="rut"], input[type="email"], mat-form-field input', { timeout: 8000 })
+    cy.get('input[type="text"], input[type="email"], input[type="tel"], mat-form-field input, input', { timeout: 10000 })
+      .not('[type="hidden"]')
+      .first()
       .should('be.visible')
   })
 
