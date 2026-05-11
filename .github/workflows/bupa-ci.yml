@@ -79,7 +79,7 @@ jobs:
   # STAGE 4 — TESTS CRÍTICOS
   # ─────────────────────────────────────────────────
   tests-criticos:
-    name: Tests Críticos — Login y Navegación
+    name: Tests Críticos — Portal Pacientes
     needs: smoke-tests
     runs-on: ubuntu-latest
     strategy:
@@ -88,6 +88,13 @@ jobs:
         spec:
           - "cypress/e2e/bupa/bupa-login*"
           - "cypress/e2e/bupa/bupa-navegacion*"
+          - "cypress/e2e/bupa/bupa-citas*"
+          - "cypress/e2e/bupa/bupa-examenes*"
+          - "cypress/e2e/bupa/bupa-perfil*"
+          - "cypress/e2e/bupa/bupa-sesion*"
+          - "cypress/e2e/bupa/bupa-responsive*"
+          - "cypress/e2e/bupa/bupa-performance*"
+          - "cypress/e2e/bupa/bupa-recuperar-clave*"
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
