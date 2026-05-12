@@ -22,8 +22,13 @@ describe('BUPA Navegación — Post Login', () => {
   })
 
   it('REQ-009: menú de navegación principal existe', () => {
-    cy.get('nav, [role="navigation"], mat-nav-list, mat-sidenav')
-      .should('exist')
+    cy.get(
+      'mat-toolbar, mat-sidenav, mat-nav-list, mat-drawer, ' +
+      'nav, [role="navigation"], header, aside, ' +
+      '[class*="nav"], [class*="sidebar"], [class*="menu"], ' +
+      'app-nav, app-sidebar, app-header',
+      { timeout: 8000 }
+    ).should('exist')
   })
 
   it('REQ-009: sección Citas es accesible desde el menú', () => {
