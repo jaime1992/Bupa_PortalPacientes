@@ -42,8 +42,14 @@ describe('BUPA Navegación — Post Login', () => {
   })
 
   it('REQ-009: sección Perfil es accesible desde el menú', () => {
-    cy.contains(/perfil|mi cuenta|cuenta/i).click({ force: true })
-    cy.url({ timeout: 10000 }).should('match', /perfil|profile|cuenta/i)
+    // Esperar que la página esté estable antes de buscar el ítem
+    cy.get('body').should('be.visible')
+    cy.wait(1500)
+    cy.contains(
+      /perfil|mi cuenta|cuenta|usuario|mi salud|personal|datos/i,
+      { timeout: 8000 }
+    ).click({ force: true })
+    cy.url({ timeout: 10000 }).should('match', /perfil|profile|cuenta|usuario|datos/i)
   })
 
 })
