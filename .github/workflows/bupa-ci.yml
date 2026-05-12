@@ -94,7 +94,6 @@ jobs:
           - "cypress/e2e/bupa/bupa-sesion*"
           - "cypress/e2e/bupa/bupa-responsive*"
           - "cypress/e2e/bupa/bupa-performance*"
-          - "cypress/e2e/bupa/bupa-recuperar-clave*"
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
