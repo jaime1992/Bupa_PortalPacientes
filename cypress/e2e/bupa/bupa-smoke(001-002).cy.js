@@ -19,6 +19,11 @@ describe('BUPA Smoke Tests — Portal vivo', () => {
     })
   })
 
+  it('REQ-001: página tiene certificado HTTPS válido', () => {
+    cy.visit('https://portalpaciente.bupa.cl/inicio')
+    cy.location('protocol').should('eq', 'https:')
+  })
+
   it('REQ-002: formulario de login paso 1 visible — campo RUT', () => {
     cy.visit('https://portalpaciente.bupa.cl/inicio')
     cy.get('input[name="rut"]', { timeout: 10000 }).should('be.visible')
@@ -44,10 +49,5 @@ describe('BUPA Smoke Tests — Portal vivo', () => {
       }
     })
   })
-
-  it('REQ-002: página tiene certificado HTTPS válido', () => {
-    cy.visit('https://portalpaciente.bupa.cl/inicio')
-    cy.location('protocol').should('eq', 'https:')
-  })
-
+   
 })

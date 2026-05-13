@@ -84,7 +84,10 @@ function buildCypressHtml(results, stats, suite, fecha) {
   const pending  = stats.pending  || 0
   const duration = stats.duration ? Math.round(stats.duration / 1000) + 's' : 'N/A'
   const status   = failures > 0 ? 'FAILED' : 'PASSED'
-  const headerBg = failures > 0 ? '#15803d' : '#15803d'
+  const headerBg = failures > 0 ? '#b91c1c' : '#15803d'
+  const specName = results.length === 1
+    ? (results[0].file || results[0].title || 'spec').split('/').pop().split('\\').pop().replace(/\.cy\.js$/, '')
+    : `${results.length} specs`
 
   const specRows = results.map(r => {
     const s       = r.stats || {}
@@ -122,8 +125,8 @@ function buildCypressHtml(results, stats, suite, fecha) {
   return `<!DOCTYPE html><html><head><meta charset="UTF-8"></head>
 <body style="margin:0;padding:0;background:#f0fdf4;font-family:Arial,sans-serif">
 <div style="max-width:700px;margin:0 auto;padding:24px 16px">
-  <div style="background:#15803d;color:#fff;padding:20px 24px;border-radius:10px 10px 0 0">
-    <h2 style="margin:0;font-size:18px">🧪 Cypress Regression — ${status === 'PASSED' ? '✅ TODO PASO' : '❌ HAY FALLOS'}</h2>
+  <div style="background:${headerBg};color:#fff;padding:20px 24px;border-radius:10px 10px 0 0">
+    <h2 style="margin:0;font-size:18px">🧪 Cypress #Test Regresión# ${specName} — ${status === 'PASSED' ? '✅ TODO PASO' : '❌ HAY FALLOS'}</h2>
     <p style="margin:6px 0 0;font-size:13px;opacity:.85">Suite: ${suite} &nbsp;|&nbsp; ${fecha}</p>
   </div>
   <div style="background:#fff;border:1px solid #bbf7d0;border-top:none;padding:24px;border-radius:0 0 10px 10px">
@@ -245,7 +248,10 @@ const server = http.createServer(async (req, res) => {
 
       const excelPath = generateCypressExcel(results, stats, suite, fecha)
       const html      = buildCypressHtml(results, stats, suite, fecha)
-      const subject   = `🧪 Cypress Test Regresión ${status} — ${stats.passes||0}✅ ${failures}❌ | ${fecha}`
+      const specName  = results.length === 1
+        ? (results[0].file || results[0].title || 'spec').split('/').pop().split('\\').pop().replace(/\.cy\.js$/, '')
+        : `${results.length} specs`
+      const subject   = `🧪 [WF-1.1] Cypress #Test Regresión# ${specName} ${status} — ${stats.passes||0}✅ ${failures}❌ | ${fecha}`
 
       await transporter.sendMail({
         from: SMTP_USER, to: EMAIL_TO, subject, html,
@@ -263,7 +269,7 @@ const server = http.createServer(async (req, res) => {
       const date  = data.date  || new Date().toISOString().split('T')[0]
       const html  = buildBugsHtml(bugs, total, date)
       const csv   = buildBugsCsv(bugs)
-      const subject = `🐛 Bugs Abiertos Jira KAN — ${total} activos | ${date}`
+      const subject = `🐛 [WF-1.2] Bugs Abiertos Jira KAN — ${total} activos | ${date}`
 
       await transporter.sendMail({
         from: SMTP_USER, to: EMAIL_TO, subject, html,
@@ -337,7 +343,7 @@ const server = http.createServer(async (req, res) => {
   </div>
 </div></body></html>`
 
-      const subject = `📋 Nueva Task Jira KAN — ${total} detectada(s) | ${fecha}`
+      const subject = `📋 [WF-1.3] Nueva Task Jira KAN — ${total} detectada(s) | ${fecha}`
       await transporter.sendMail({
         from: SMTP_USER, to: EMAIL_TO, subject, html,
         attachments: [{ filename: path.basename(excelPath), path: excelPath }]
