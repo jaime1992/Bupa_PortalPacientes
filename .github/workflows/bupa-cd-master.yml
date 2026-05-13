@@ -1,0 +1,150 @@
+name: BUPA — CD Master (Deploy + Smoke Producción)
+# Ambiente: PRODUCCIÓN — corre solo al mergear a master
+# Objetivo: deploy a producción + verificar que no se rompió nada
+# Tiempo estimado: ~5 minutos
+# IMPORTANTE: si smoke post-deploy falla → hacer rollback manual
+
+on:
+  push:
+    branches: [master, main]             # solo se activa al mergear a master o main
+  workflow_dispatch:                     # botón manual para deploy de emergencia
+
+jobs:
+
+  # ─────────────────────────────────────────────────
+  # STAGE 1 — INSTALAR DEPENDENCIAS
+  # ─────────────────────────────────────────────────
+  install:
+    name: Instalar dependencias
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+      - run: npm ci
+
+  # ─────────────────────────────────────────────────
+  # STAGE 2 — SMOKE TESTS PRE-DEPLOY
+  # Verifica que el código nuevo no rompe lo básico antes de deployar
+  # ─────────────────────────────────────────────────
+  smoke-pre-deploy:
+    name: Smoke Tests — Verificar antes de deployar
+    needs: install
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+      - run: npm ci
+
+      - name: Correr smoke tests contra staging antes del deploy
+        run: npx cypress run --spec "cypress/e2e/bupa/bupa-smoke*" --env grep=@smoke
+        env:
+          CYPRESS_BUPA_USER: ${{ secrets.BUPA_USER }}
+          CYPRESS_BUPA_PASS: ${{ secrets.BUPA_PASS }}
+          CYPRESS_BASE_URL: ${{ secrets.STAGING_URL }}  # corre contra staging, no contra prod
+
+      - name: Guardar evidencia pre-deploy
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: smoke-pre-deploy
+          path: |
+            cypress/reports/
+            cypress/screenshots/
+          retention-days: 30
+
+  # ─────────────────────────────────────────────────
+  # STAGE 3 — DEPLOY A PRODUCCIÓN
+  # Solo corre si smoke pre-deploy pasó
+  # ─────────────────────────────────────────────────
+  deploy:
+    name: Deploy a Producción
+    needs: smoke-pre-deploy              # si smoke falla NO se deploya — protege producción
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+      - run: npm ci
+
+      - name: Build producción
+        run: npm run build --if-present  # compila Angular en modo producción
+
+      - name: Deploy a producción
+        run: echo "Aquí va el comando de deploy a portalpaciente.bupa.cl"
+        # Ejemplo: npm run deploy:prod
+        # Ejemplo: aws s3 sync dist/ s3://bupa-portal/
+        # Ejemplo: az webapp deploy ...
+
+  # ─────────────────────────────────────────────────
+  # STAGE 4 — SMOKE POST-DEPLOY (en producción real)
+  # Verifica que el deploy no rompió nada en prod
+  # ─────────────────────────────────────────────────
+  smoke-post-deploy:
+    name: Smoke Tests — Verificar producción post-deploy
+    needs: deploy                        # corre DESPUÉS del deploy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+      - run: npm ci
+
+      - name: Correr smoke tests en PRODUCCIÓN
+        run: npx cypress run --spec "cypress/e2e/bupa/bupa-smoke*" --env grep=@smoke
+        env:
+          CYPRESS_BUPA_USER: ${{ secrets.BUPA_USER }}
+          CYPRESS_BUPA_PASS: ${{ secrets.BUPA_PASS }}
+          CYPRESS_BASE_URL: https://portalpaciente.bupa.cl  # apunta directo a producción
+
+      - name: Guardar evidencia post-deploy
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: smoke-post-deploy
+          path: |
+            cypress/reports/
+            cypress/screenshots/
+          retention-days: 30
+
+  # ─────────────────────────────────────────────────
+  # STAGE 5 — NOTIFICAR RESULTADO
+  # ─────────────────────────────────────────────────
+  notify:
+    name: Notificar resultado al equipo
+    needs: [smoke-pre-deploy, deploy, smoke-post-deploy]
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - name: Determinar estado final
+        id: estado
+        run: |
+          if [ "${{ needs.smoke-post-deploy.result }}" == "success" ]; then
+            echo "status=DEPLOY EXITOSO" >> $GITHUB_OUTPUT
+            echo "emoji=🚀" >> $GITHUB_OUTPUT
+          else
+            echo "status=DEPLOY FALLIDO — REVISAR ROLLBACK" >> $GITHUB_OUTPUT
+            echo "emoji=🔴" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Notificar resultado a n8n
+        run: |
+          curl -X POST "${{ secrets.N8N_WEBHOOK_URL }}" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "pipeline": "BUPA CD Master — Producción",
+              "status": "${{ steps.estado.outputs.status }}",
+              "emoji": "${{ steps.estado.outputs.emoji }}",
+              "branch": "${{ github.ref_name }}",
+              "actor": "${{ github.actor }}",
+              "run_url": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+            }' || echo "n8n no disponible — notificación omitida"

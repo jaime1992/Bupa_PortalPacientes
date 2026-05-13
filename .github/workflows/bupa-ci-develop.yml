@@ -1,0 +1,200 @@
+name: BUPA — CI Develop (Suite Completa)
+# Ambiente: STAGING — corre al mergear a develop
+# Objetivo: validación completa antes de ir a producción — QA Lead aprueba aquí
+# Tiempo estimado: ~15 minutos
+
+on:
+  push:
+    branches: [develop]                  # se activa al hacer push o merge a develop
+  pull_request:
+    branches: [develop]                  # se activa al abrir PR hacia develop
+  schedule:
+    - cron: '50 7 * * 1-5'             # corre automático lunes-viernes 7:50am UTC (4:50am Chile)
+  workflow_dispatch:                     # botón manual en GitHub
+
+jobs:
+
+  # ─────────────────────────────────────────────────
+  # STAGE 1 — INSTALAR DEPENDENCIAS
+  # ─────────────────────────────────────────────────
+  install:
+    name: Instalar dependencias
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+      - run: npm ci
+
+  # ─────────────────────────────────────────────────
+  # STAGE 2 — SEGURIDAD (paralelo con smoke)
+  # ─────────────────────────────────────────────────
+  security:
+    name: Auditoría de seguridad
+    needs: install
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: npm ci
+      - name: Verificar vulnerabilidades HIGH
+        run: npm audit --audit-level=high --ignore-scripts
+        continue-on-error: true          # xlsx sin fix disponible — revisión manual pendiente
+
+  # ─────────────────────────────────────────────────
+  # STAGE 3 — SMOKE TESTS (portal vivo?)
+  # Corre en paralelo con security
+  # ─────────────────────────────────────────────────
+  smoke-tests:
+    name: Smoke Tests — Portal vivo
+    needs: install
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+      - run: npm ci
+
+      - name: Correr smoke tests BUPA
+        run: npx cypress run --spec "cypress/e2e/bupa/bupa-smoke*"
+        env:
+          CYPRESS_BUPA_USER: ${{ secrets.BUPA_USER }}
+          CYPRESS_BUPA_PASS: ${{ secrets.BUPA_PASS }}
+
+      - name: Guardar evidencia smoke
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: smoke-evidencia-develop
+          path: |
+            cypress/reports/
+            cypress/screenshots/
+          retention-days: 30
+
+  # ─────────────────────────────────────────────────
+  # STAGE 4 — TESTS CRÍTICOS (matrix paralelo)
+  # Cada spec corre como job independiente al mismo tiempo
+  # ─────────────────────────────────────────────────
+  tests-criticos:
+    name: Tests Críticos — Portal Pacientes
+    needs: smoke-tests                   # si smoke falla los críticos NO corren
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false                   # si un spec falla los otros siguen corriendo
+      matrix:
+        spec:
+          - "cypress/e2e/bupa/bupa-login*"
+          - "cypress/e2e/bupa/bupa-navegacion*"
+          - "cypress/e2e/bupa/bupa-citas*"
+          - "cypress/e2e/bupa/bupa-examenes*"
+          - "cypress/e2e/bupa/bupa-perfil*"
+          - "cypress/e2e/bupa/bupa-sesion*"
+          - "cypress/e2e/bupa/bupa-responsive*"
+          - "cypress/e2e/bupa/bupa-performance*"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+      - run: npm ci
+
+      - name: Correr spec ${{ matrix.spec }}
+        run: |
+          npx cypress run \
+            --spec "${{ matrix.spec }}" \
+            --reporter mochawesome \
+            --reporter-options "reportDir=cypress/reports/json,overwrite=false,html=false,json=true"
+        env:
+          CYPRESS_BUPA_USER: ${{ secrets.BUPA_USER }}
+          CYPRESS_BUPA_PASS: ${{ secrets.BUPA_PASS }}
+
+      - name: Subir JSON del reporte
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: reporte-json-${{ strategy.job-index }}
+          path: |
+            cypress/reports/json/
+            cypress/screenshots/
+          retention-days: 1
+
+  # ─────────────────────────────────────────────────
+  # STAGE 5 — REPORTE MOCHAWESOME (HTML unificado)
+  # ─────────────────────────────────────────────────
+  reporte-mochawesome:
+    name: Generar Reporte HTML QA
+    needs: tests-criticos
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+      - run: npm ci
+
+      - name: Descargar todos los JSONs de reportes
+        uses: actions/download-artifact@v4
+        with:
+          pattern: reporte-json-*
+          path: cypress/reports/json
+          merge-multiple: true
+
+      - name: Merge JSONs y generar HTML
+        run: |
+          npx mochawesome-merge "cypress/reports/json/**/*.json" \
+            -o cypress/reports/merged-report.json
+          npx marge cypress/reports/merged-report.json \
+            --reportDir cypress/reports/html \
+            --reportTitle "BUPA Portal Pacientes — QA Report Staging" \
+            --reportPageTitle "QA BUPA Chile — Staging" \
+            --inline
+        continue-on-error: true
+
+      - name: Subir reporte HTML final
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: reporte-qa-mochawesome-develop
+          path: |
+            cypress/reports/html/
+            cypress/reports/merged-report.json
+          retention-days: 30
+
+  # ─────────────────────────────────────────────────
+  # STAGE 6 — NOTIFICAR RESULTADO
+  # ─────────────────────────────────────────────────
+  notify:
+    name: Notificar resultado al equipo
+    needs: [smoke-tests, tests-criticos, security, reporte-mochawesome]
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - name: Determinar estado final
+        id: estado
+        run: |
+          if [ "${{ needs.smoke-tests.result }}" == "success" ] && [ "${{ needs.tests-criticos.result }}" == "success" ]; then
+            echo "status=PASSED" >> $GITHUB_OUTPUT
+            echo "emoji=✅" >> $GITHUB_OUTPUT
+          else
+            echo "status=FAILED" >> $GITHUB_OUTPUT
+            echo "emoji=❌" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Notificar resultado a n8n
+        run: |
+          curl -X POST "${{ secrets.N8N_WEBHOOK_URL }}" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "pipeline": "BUPA CI Develop — Staging",
+              "status": "${{ steps.estado.outputs.status }}",
+              "emoji": "${{ steps.estado.outputs.emoji }}",
+              "branch": "${{ github.ref_name }}",
+              "actor": "${{ github.actor }}",
+              "run_url": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+            }' || echo "n8n no disponible — notificación omitida"
